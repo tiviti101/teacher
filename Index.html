@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدخال بيانات المعلمين</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif; /* الخط الأساسي */
+            font-size: 14px; /* حجم الخط الأساسي */
+            color: #333; /* لون الخط */
+            direction: rtl; /* لضمان عرض النص باللغة العربية بشكل صحيح */
+        }
+        label {
+            display: block;
+            margin: 5px 0; /* تصغير المسافة بين أسماء الحقول */
+            font-size: 16px; /* حجم خط اسم الحقل */
+            font-weight: bold; /* جعل الخط عريض */
+        }
+        input, select {
+            margin: 5px 0; /* تصغير المسافة بين الحقول */
+            padding: 8px; /* إضافة padding لتحسين مظهر الحقول */
+            width: calc(100% - 16px); /* ضبط العرض ليكون مناسبًا */
+        }
+        select {
+            font-family: 'بلد', sans-serif; /* خط قائمة الأسماء */
+            font-size: 16px; /* حجم خط قائمة الأسماء */
+        }
+        .error {
+            color: red; /* لون الرسالة الخطأ */
+            margin: 10px 0; /* المسافة حول الرسالة */
+        }
+    </style>
+</head>
+<body>
+    <h1>إدخال بيانات المعلمين</h1>
+    <form id="dataForm">
+        <label for="name">الاسم:</label>
+        <select id="name" required>
+            <!-- سيتم ملء الخيارات هنا بواسطة JavaScript -->
+        </select>
+
+        <label for="amount">المبلغ:</label>
+        <input type="number" id="amount" oninput="calculateTotal()" placeholder="أدخل المبلغ" min="0" required>
+
+        <label for="incentive">حافز:</label>
+        <input type="number" id="incentive" oninput="calculateTotal()" placeholder="أدخل الحافز" min="0" required>
+
+        <label for="coverage">له تغطية:</label>
+        <input type="number" id="coverage" oninput="calculateTotal()" placeholder="أدخل له تغطية" min="0" required>
+
+        <label for="totalSalary">اجمالي المرتب:</label>
+        <input type="number" id="totalSalary" readonly placeholder="اجمالي المرتب" style="background-color: #f0f0f0;">
+
+        <label for="coverageDue">عليه تغطية:</label>
+        <input type="number" id="coverageDue" oninput="calculateDeductions()" placeholder="أدخل عليه تغطية" min="0" required>
+
+        <label for="donation">تبرع:</label>
+        <input type="number" id="donation" oninput="calculateDeductions()" placeholder="أدخل تبرع" min="0" required>
+
+        <label for="loan">سلفه:</label>
+        <input type="number" id="loan" oninput="calculateDeductions()" placeholder="أدخل سلفة" min="0" required>
+
+        <label for="totalDeduction">اجمالي الخصم:</label>
+        <input type="number" id="totalDeduction" readonly placeholder="اجمالي الخصم" style="background-color: #f0f0f0;">
+
+        <label for="netAmount">المبلغ الصافي:</label>
+        <input type="number" id="netAmount" readonly placeholder="المبلغ الصافي" style="background-color: #f0f0f0;">
+
+        <div class="error" id="error-message" style="display: none;"></div>
+
+        <input type="submit" value="إرسال">
+    </form>
+
+    <script>
+        let submittedNames = []; // مصفوفة لتخزين الأسماء المقدمة
+
+        // دالة لتحميل الأسماء من العمود R
+        function loadNames() {
+            google.script.run.withSuccessHandler(function(names) {
+                const select = document.getElementById('name');
+                names.forEach(function(name) {
+                    const option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    select.appendChild(option);
+                });
+            }).getNames();
+        }
+
+        // دالة لحساب اجمالي المرتب
+        function calculateTotal() {
+            const amount = parseFloat(document.getElementById('amount').value) || 0;
+            const incentive = parseFloat(document.getElementById('incentive').value) || 0;
+            const coverage = parseFloat(document.getElementById('coverage').value) || 0;
+            const totalSalary = amount + incentive + coverage;
+            document.getElementById('totalSalary').value = Math.floor(totalSalary); // تحديث اجمالي المرتب بدون أرقام عشرية
+            calculateNetAmount(); // حساب المبلغ الصافي بعد تحديث اجمالي المرتب
+        }
+
+        // دالة لحساب اجمالي الخصم
+        function calculateDeductions() {
+            const coverageDue = parseFloat(document.getElementById('coverageDue').value) || 0;
+            const donation = parseFloat(document.getElementById('donation').value) || 0;
+            const loan = parseFloat(document.getElementById('loan').value) || 0;
+            const totalDeduction = coverageDue + donation + loan;
+            document.getElementById('totalDeduction').value = Math.floor(totalDeduction); // تحديث اجمالي الخصم بدون أرقام عشرية
+            calculateNetAmount(); // حساب المبلغ الصافي بعد تحديث اجمالي الخصم
+        }
+
+        // دالة لحساب المبلغ الصافي
+        function calculateNetAmount() {
+            const totalSalary = parseFloat(document.getElementById('totalSalary').value) || 0;
+            const totalDeduction = parseFloat(document.getElementById('totalDeduction').value) || 0;
+            const netAmount = totalSalary - totalDeduction;
+            document.getElementById('netAmount').value = Math.floor(netAmount); // تحديث المبلغ الصافي بدون أرقام عشرية
+        }
+
+        // دالة للانتقال بين الحقول عند الضغط على Enter
+        document.getElementById('dataForm').onsubmit = function(event) {
+            event.preventDefault();
+            const selectedName = document.getElementById('name').value;
+
+            // التحقق من تكرار الاسم
+            if (submittedNames.includes(selectedName)) {
+                const errorMessage = document.getElementById('error-message');
+                errorMessage.textContent = 'خطأ: الاسم مكرر! يرجى اختيار اسم آخر.';
+                errorMessage.style.display = 'block';
+                return; // عدم إرسال البيانات إذا كان الاسم مكررًا
+            }
+
+            // إضافة الاسم إلى المصفوفة
+            submittedNames.push(selectedName);
+
+            const data = [
+                selectedName,
+                document.getElementById('amount').value || '',
+                document.getElementById('incentive').value || '',
+                document.getElementById('coverage').value || '',
+                document.getElementById('totalSalary').value || '',
+                document.getElementById('coverageDue').value || '',
+                document.getElementById('donation').value || '',
+                document.getElementById('loan').value || '',
+                document.getElementById('totalDeduction').value || '',
+                document.getElementById('netAmount').value || ''
+            ];
+            google.script.run.submitData(data);
+            document.getElementById('dataForm').reset();
+            document.getElementById('totalSalary').value = ''; // إعادة تعيين اجمالي المرتب
+            document.getElementById('totalDeduction').value = ''; // إعادة تعيين اجمالي الخصم
+            document.getElementById('netAmount').value = ''; // إعادة تعيين المبلغ الصافي
+            document.getElementById('error-message').style.display = 'none'; // إخفاء رسالة الخطأ
+        };
+
+        // إضافة حدث للانتقال بين الحقول
+        document.querySelectorAll('input, select').forEach(field => {
+            field.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    const nextField = document.querySelector(`input, select`);
+                    let next = false;
+                    document.querySelectorAll('input, select').forEach((f) => {
+                        if (next) {
+                            f.focus();
+                            next = false;
+                        }
+                        if (f === field) {
+                            next = true;
+                        }
+                    });
+                }
+            });
+        });
+
+        // تحميل الأسماء عند تحميل الصفحة
+        window.onload = loadNames;
+    </script>
+</body>
+</html>
